@@ -1,9 +1,7 @@
 "use client";
 
-import { QueryResponse } from "../types";
-
 interface ResponseDisplayProps {
-	response: QueryResponse;
+	response: string;
 	sql?: string | null;
 	data?: any[] | null;
 }
@@ -15,14 +13,14 @@ export default function ResponseDisplay({
 }: ResponseDisplayProps) {
 	return (
 		<div className="w-full max-w-lg mt-8">
-			<div className="bg-white shadow-md rounded px-8 pt-6 pb-8 mb-4">
+			<div className="bg-[var(--card-bg)] shadow-lg rounded-lg px-6 py-5 mb-4 border border-[var(--border)]">
 				{/* SQL Query Section */}
 				{sql && (
-					<div className="mb-6 border-b pb-4">
-						<h4 className="text-lg font-semibold mb-2">
+					<div className="mb-6 border-b border-[var(--border)] pb-4">
+						<h4 className="text-lg font-semibold mb-2 text-[var(--primary)]">
 							SQL Query
 						</h4>
-						<div className="bg-gray-100 p-3 rounded overflow-auto">
+						<div className="bg-[var(--background)] p-3 rounded-md overflow-auto border border-[var(--border)]">
 							<pre className="text-sm font-mono">{sql}</pre>
 						</div>
 					</div>
@@ -30,47 +28,42 @@ export default function ResponseDisplay({
 
 				{/* Response Section */}
 				<div className="mb-6">
-					<h4 className="text-lg font-semibold mb-2">Answer</h4>
-					<div className="text-gray-700">
-						{typeof response === "string"
-							? response
-							: JSON.stringify(response)}
-					</div>
+					<h4 className="text-lg font-semibold mb-2 text-[var(--primary)]">
+						Answer
+					</h4>
+					<div className="text-[var(--foreground)]">{response}</div>
 				</div>
 
-				{/* Data Results Section */}
+				{/* Data Table Section */}
 				{data && data.length > 0 && (
-					<div className="mb-6">
-						<h4 className="text-lg font-semibold mb-2">
-							Data Results
+					<div>
+						<h4 className="text-lg font-semibold mb-2 text-[var(--primary)]">
+							Data
 						</h4>
 						<div className="overflow-x-auto">
-							<table className="min-w-full bg-white">
-								<thead>
+							<table className="min-w-full divide-y divide-[var(--border)]">
+								<thead className="bg-[var(--background)]">
 									<tr>
 										{Object.keys(data[0]).map((key) => (
 											<th
 												key={key}
-												className="py-2 px-4 border-b border-gray-200 bg-gray-50 text-left text-xs font-semibold text-gray-600 uppercase tracking-wider">
+												className="px-4 py-2 text-left text-xs font-medium text-[var(--secondary)] uppercase tracking-wider">
 												{key}
 											</th>
 										))}
 									</tr>
 								</thead>
-								<tbody>
+								<tbody className="divide-y divide-[var(--border)]">
 									{data.map((row, i) => (
 										<tr key={i}>
 											{Object.values(row).map(
-												(value: any, j) => (
+												(value, j) => (
 													<td
 														key={j}
-														className="py-2 px-4 border-b border-gray-200 text-sm">
-														{typeof value ===
-														"object"
-															? JSON.stringify(
-																	value
-															  )
-															: String(value)}
+														className="px-4 py-2 whitespace-nowrap text-sm">
+														{value !== null
+															? String(value)
+															: "NULL"}
 													</td>
 												)
 											)}

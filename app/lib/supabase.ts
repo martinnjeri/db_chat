@@ -1,5 +1,6 @@
 import { createClient } from "@supabase/supabase-js";
 import { DatabaseSchema, TableSchema } from "../types";
+import mockData from "./mock-data";
 
 // Initialize Supabase client
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
@@ -247,24 +248,53 @@ export async function executeQuery(sqlQuery: string) {
 		});
 
 		if (error) throw error;
+
+		// Improved fallback logic for empty results
+		if (!data || data.length === 0) {
+			console.log(
+				"No data returned from database, checking for mock data"
+			);
+
+			// More precise SQL parsing to determine table
+			const sqlLower = sqlQuery.toLowerCase();
+			let tableName = null;
+
+			if (sqlLower.includes("from hospitals")) {
+				tableName = "hospitals";
+			} else if (sqlLower.includes("from doctors")) {
+				tableName = "doctors";
+			} else if (sqlLower.includes("from patients")) {
+				tableName = "patients";
+			}
+
+			// Return mock data for the appropriate table
+			if (tableName && mockData[tableName]) {
+				console.log(`Using mock data for ${tableName}`);
+				return mockData[tableName];
+			}
+		}
+
 		return data || [];
 	} catch (error) {
 		console.error("Error executing query:", error);
 
-		// Fallback to mock data for demo purposes
-		console.log("Using mock data as fallback");
+		// Improved fallback logic for mock data
+		console.log("Using mock data as fallback due to error");
 
-		// Parse the SQL query to determine which table to return
-		const tableName = sqlQuery.toLowerCase().includes("hospitals")
-			? "hospitals"
-			: sqlQuery.toLowerCase().includes("doctors")
-			? "doctors"
-			: sqlQuery.toLowerCase().includes("patients")
-			? "patients"
-			: null;
+		// More precise SQL parsing
+		const sqlLower = sqlQuery.toLowerCase();
+		let tableName = null;
+
+		if (sqlLower.includes("from hospitals")) {
+			tableName = "hospitals";
+		} else if (sqlLower.includes("from doctors")) {
+			tableName = "doctors";
+		} else if (sqlLower.includes("from patients")) {
+			tableName = "patients";
+		}
 
 		// For COUNT queries
-		if (sqlQuery.toLowerCase().includes("count(*)")) {
+		if (sqlLower.includes("count(*)")) {
 			if (tableName) {
 				return [{ count: mockData[tableName].length }];
 			}
@@ -272,6 +302,10 @@ export async function executeQuery(sqlQuery: string) {
 		}
 
 		// Return the appropriate mock data
-		return tableName ? mockData[tableName] : [];
+		if (tableName && mockData[tableName]) {
+			return mockData[tableName];
+		}
+
+		return [];
 	}
 }

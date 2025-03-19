@@ -33,6 +33,7 @@ export async function POST(req: NextRequest) {
 		let sql;
 		try {
 			sql = await processNaturalLanguageQuery(query);
+			console.log("Generated SQL:", sql);
 		} catch (error) {
 			console.error("Error generating SQL:", error);
 			return NextResponse.json({
