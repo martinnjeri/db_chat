@@ -1,6 +1,33 @@
 import { createClient } from "@supabase/supabase-js";
 import { DatabaseSchema, TableSchema } from "../types";
-import mockData from "./mock-data";
+
+// Define types for mock data
+type Hospital = {
+	id: number;
+	name: string;
+	city: string;
+	beds: number;
+};
+
+type Doctor = {
+	id: number;
+	name: string;
+	phone_number: string;
+	email: string;
+};
+
+type Patient = {
+	id: number;
+	name: string;
+	age: number;
+	doctor_id: number;
+};
+
+type MockData = {
+	hospitals: Hospital[];
+	doctors: Doctor[];
+	patients: Patient[];
+};
 
 // Initialize Supabase client
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
@@ -118,7 +145,7 @@ export async function setupDatabaseFunctions() {
 setupDatabaseFunctions().catch(console.error);
 
 // Mock data for when database connection fails
-const mockData = {
+const mockData: MockData = {
 	hospitals: [
 		{ id: 1, name: "General Hospital", city: "New York", beds: 500 },
 		{ id: 2, name: "Community Medical", city: "Boston", beds: 200 },
@@ -243,69 +270,135 @@ export async function getTableSchema(): Promise<DatabaseSchema> {
 
 export async function executeQuery(sqlQuery: string) {
 	try {
+		// Validate SQL query
+		if (!sqlQuery.toLowerCase().trim().startsWith("select")) {
+			throw new Error(
+				"Only SELECT queries are allowed for security reasons"
+			);
+		}
+
+		// Special handling for email searches
+		if (sqlQuery.toLowerCase().includes("email")) {
+			const originalQuery = sqlQuery;
+
+			// Try exact match first
+			let { data, error } = await supabase.rpc("run_sql_query", {
+				query: originalQuery,
+			});
+
+			// If no results, try case-insensitive match
+			if ((!data || data.length === 0) && !error) {
+				const caseInsensitiveQuery = sqlQuery.replace(
+					/email\s*=\s*'([^']+)'/i,
+					"LOWER(email) = LOWER('$1')"
+				);
+				({ data, error } = await supabase.rpc("run_sql_query", {
+					query: caseInsensitiveQuery,
+				}));
+			}
+
+			// If still no results, try partial match
+			if ((!data || data.length === 0) && !error) {
+				const emailValue = sqlQuery.match(
+					/email\s*=\s*'([^']+)'/i
+				)?.[1];
+				if (emailValue) {
+					const partialMatchQuery = sqlQuery.replace(
+						/email\s*=\s*'([^']+)'/i,
+						`email ILIKE '%${emailValue}%'`
+					);
+					({ data, error } = await supabase.rpc("run_sql_query", {
+						query: partialMatchQuery,
+					}));
+				}
+			}
+
+			// If there's an error or no results, try mock data
+			if (error || !data || data.length === 0) {
+				const tableName = sqlQuery
+					.toLowerCase()
+					.match(/from\s+(\w+)/)?.[1];
+				if (tableName && tableName in mockData) {
+					// For mock data, implement similar email matching logic
+					const emailValue = sqlQuery.match(
+						/email\s*=\s*'([^']+)'/i
+					)?.[1];
+					if (emailValue && tableName === "doctors") {
+						const mockResults = mockData.doctors.filter((doc) =>
+							doc.email
+								.toLowerCase()
+								.includes(emailValue.toLowerCase())
+						);
+						if (mockResults.length > 0) {
+							console.log(
+								`Found matching results in mock data for email: ${emailValue}`
+							);
+							return mockResults;
+						}
+					}
+				}
+			}
+
+			if (error) throw error;
+			return data || [];
+		}
+
+		// Regular query execution for non-email queries
 		const { data, error } = await supabase.rpc("run_sql_query", {
 			query: sqlQuery,
 		});
 
-		if (error) throw error;
+		if (error) {
+			console.error("Database query error:", error);
 
-		// Improved fallback logic for empty results
-		if (!data || data.length === 0) {
-			console.log(
-				"No data returned from database, checking for mock data"
-			);
-
-			// More precise SQL parsing to determine table
-			const sqlLower = sqlQuery.toLowerCase();
-			let tableName = null;
-
-			if (sqlLower.includes("from hospitals")) {
-				tableName = "hospitals";
-			} else if (sqlLower.includes("from doctors")) {
-				tableName = "doctors";
-			} else if (sqlLower.includes("from patients")) {
-				tableName = "patients";
+			// Check if it's a "relation does not exist" error
+			if (
+				error.message.includes("relation") &&
+				error.message.includes("does not exist")
+			) {
+				// Try to get mock data for the table
+				const tableName = sqlQuery
+					.toLowerCase()
+					.match(/from\s+(\w+)/)?.[1];
+				if (tableName && tableName in mockData) {
+					console.log(`Using mock data for table: ${tableName}`);
+					return mockData[tableName as keyof MockData];
+				}
 			}
 
-			// Return mock data for the appropriate table
-			if (tableName && mockData[tableName]) {
-				console.log(`Using mock data for ${tableName}`);
-				return mockData[tableName];
-			}
+			throw new Error(`Database error: ${error.message}`);
 		}
 
-		return data || [];
+		// Handle empty results
+		if (!data || (Array.isArray(data) && data.length === 0)) {
+			// Try to get mock data if no results
+			const tableName = sqlQuery.toLowerCase().match(/from\s+(\w+)/)?.[1];
+			if (tableName && tableName in mockData) {
+				console.log(
+					`No results found, using mock data for table: ${tableName}`
+				);
+				return mockData[tableName as keyof MockData];
+			}
+			return [];
+		}
+
+		return data;
 	} catch (error) {
-		console.error("Error executing query:", error);
+		console.error("Query execution error:", error);
 
-		// Improved fallback logic for mock data
-		console.log("Using mock data as fallback due to error");
-
-		// More precise SQL parsing
-		const sqlLower = sqlQuery.toLowerCase();
-		let tableName = null;
-
-		if (sqlLower.includes("from hospitals")) {
-			tableName = "hospitals";
-		} else if (sqlLower.includes("from doctors")) {
-			tableName = "doctors";
-		} else if (sqlLower.includes("from patients")) {
-			tableName = "patients";
-		}
-
-		// For COUNT queries
-		if (sqlLower.includes("count(*)")) {
-			if (tableName) {
-				return [{ count: mockData[tableName].length }];
+		// Try to extract table name and use mock data as last resort
+		try {
+			const tableName = sqlQuery.toLowerCase().match(/from\s+(\w+)/)?.[1];
+			if (tableName && tableName in mockData) {
+				console.log(
+					`Error occurred, falling back to mock data for: ${tableName}`
+				);
+				return mockData[tableName as keyof MockData];
 			}
-			return [{ count: 0 }];
+		} catch (e) {
+			console.error("Error while trying to use mock data:", e);
 		}
 
-		// Return the appropriate mock data
-		if (tableName && mockData[tableName]) {
-			return mockData[tableName];
-		}
-
-		return [];
+		throw error;
 	}
 }

@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, FormEvent } from "react";
+import { useState, FormEvent, useEffect } from "react";
+import VoiceInput from "./VoiceInput";
 
 interface QueryInputProps {
 	onSubmit: (query: string) => void;
@@ -14,8 +15,20 @@ export default function QueryInput({ onSubmit, disabled }: QueryInputProps) {
 		e.preventDefault();
 		if (query.trim()) {
 			onSubmit(query);
+			setQuery(""); // Clear input after submission
 		}
 	};
+
+	const handleVoiceTranscript = (transcript: string) => {
+		console.log("Received voice transcript:", transcript);
+		// Set the transcript in the input field
+		setQuery(transcript);
+	};
+
+	// For debugging
+	useEffect(() => {
+		console.log("Current query value:", query);
+	}, [query]);
 
 	return (
 		<form onSubmit={handleSubmit} className="w-full max-w-lg">
@@ -28,12 +41,18 @@ export default function QueryInput({ onSubmit, disabled }: QueryInputProps) {
 					disabled={disabled}
 					className="appearance-none bg-transparent w-full text-[var(--foreground)] py-3 px-4 leading-tight focus:outline-none"
 				/>
-				<button
-					type="submit"
-					disabled={disabled || !query.trim()}
-					className="flex-shrink-0 bg-[var(--primary)] hover:bg-[var(--primary-dark)] text-white py-3 px-4 transition-colors duration-200 ease-in-out disabled:opacity-50 disabled:cursor-not-allowed">
-					Ask
-				</button>
+				<div className="flex items-center">
+					<VoiceInput
+						onTranscript={handleVoiceTranscript}
+						disabled={disabled}
+					/>
+					<button
+						type="submit"
+						disabled={disabled || !query.trim()}
+						className="bg-[var(--primary)] hover:bg-[var(--primary-dark)] text-white font-bold py-3 px-4 rounded-r focus:outline-none focus:shadow-outline disabled:opacity-50 disabled:cursor-not-allowed">
+						Search
+					</button>
+				</div>
 			</div>
 		</form>
 	);

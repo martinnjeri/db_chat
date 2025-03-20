@@ -12,7 +12,13 @@ export async function POST(req: NextRequest) {
 
 		if (!query) {
 			return NextResponse.json(
-				{ error: "Query is required" },
+				{
+					error: "Query is required",
+					response: "Please provide a query to search the database.",
+					sql: null,
+					data: null,
+					apiStatus: "error",
+				},
 				{ status: 400 }
 			);
 		}
@@ -26,7 +32,6 @@ export async function POST(req: NextRequest) {
 				"Google AI API status check failed:",
 				apiStatus.message
 			);
-			// Continue anyway, as we have fallback mechanisms
 		}
 
 		// Try to generate SQL
@@ -34,12 +39,14 @@ export async function POST(req: NextRequest) {
 		try {
 			sql = await processNaturalLanguageQuery(query);
 			console.log("Generated SQL:", sql);
-		} catch (error) {
+		} catch (error: any) {
 			console.error("Error generating SQL:", error);
 			return NextResponse.json({
-				response: `Error generating SQL: ${error.message}`,
-				sql: "Error",
-				data: [],
+				error: `Failed to generate SQL query: ${error.message}`,
+				response:
+					"I couldn't understand how to query the database for that request. Could you try rephrasing it?",
+				sql: null,
+				data: null,
 				apiStatus: apiStatus.isValid ? "ok" : apiStatus.message,
 			});
 		}
@@ -48,12 +55,14 @@ export async function POST(req: NextRequest) {
 		let data;
 		try {
 			data = await executeQuery(sql);
-		} catch (error) {
+		} catch (error: any) {
 			console.error("Error executing query:", error);
 			return NextResponse.json({
-				response: `Error executing query: ${error.message}`,
+				error: `Failed to execute query: ${error.message}`,
+				response:
+					"There was an error running your query. The database might be unavailable or the query was invalid.",
 				sql,
-				data: [],
+				data: null,
 				apiStatus: apiStatus.isValid ? "ok" : apiStatus.message,
 			});
 		}
@@ -64,17 +73,29 @@ export async function POST(req: NextRequest) {
 			if (apiStatus.isValid) {
 				response = await processQueryResults(data, query);
 			} else {
-				// Simple fallback for result processing
-				response = `Found ${data.length} results for your query "${query}".`;
-				if (data.length > 0) {
-					response += ` The first result has the following properties: ${Object.keys(
-						data[0]
-					).join(", ")}.`;
+				// Enhanced fallback for result processing
+				if (!data || data.length === 0) {
+					response = "No results found for your query.";
+				} else {
+					response = `Found ${data.length} ${
+						data.length === 1 ? "result" : "results"
+					} for your query "${query}".`;
+					if (data.length > 0) {
+						const sampleProperties = Object.keys(data[0]).join(
+							", "
+						);
+						response += ` Each record contains the following information: ${sampleProperties}.`;
+					}
 				}
 			}
-		} catch (error) {
+		} catch (error: any) {
 			console.error("Error processing results:", error);
-			response = `Found ${data.length} results for your query.`;
+			response =
+				data && data.length > 0
+					? `Found ${data.length} ${
+							data.length === 1 ? "result" : "results"
+					  } matching your query.`
+					: "No results found for your query.";
 		}
 
 		return NextResponse.json({
@@ -83,16 +104,18 @@ export async function POST(req: NextRequest) {
 			data,
 			apiStatus: apiStatus.isValid ? "ok" : apiStatus.message,
 		});
-	} catch (error) {
+	} catch (error: any) {
 		console.error("Error in API route:", error);
 		return NextResponse.json(
 			{
-				response: `Error: ${error.message || "Unknown error"}`,
-				sql: "Error occurred",
-				data: [],
+				error: error.message || "An unexpected error occurred",
+				response:
+					"Sorry, something went wrong while processing your request. Please try again.",
+				sql: null,
+				data: null,
 				apiStatus: "error",
 			},
-			{ status: 200 }
-		); // Return 200 to see the error in the UI
+			{ status: 500 }
+		);
 	}
 }
