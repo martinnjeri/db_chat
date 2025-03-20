@@ -277,73 +277,9 @@ export async function executeQuery(sqlQuery: string) {
 			);
 		}
 
-		// Special handling for email searches
-		if (sqlQuery.toLowerCase().includes("email")) {
-			const originalQuery = sqlQuery;
+		console.log("Executing SQL query:", sqlQuery);
 
-			// Try exact match first
-			let { data, error } = await supabase.rpc("run_sql_query", {
-				query: originalQuery,
-			});
-
-			// If no results, try case-insensitive match
-			if ((!data || data.length === 0) && !error) {
-				const caseInsensitiveQuery = sqlQuery.replace(
-					/email\s*=\s*'([^']+)'/i,
-					"LOWER(email) = LOWER('$1')"
-				);
-				({ data, error } = await supabase.rpc("run_sql_query", {
-					query: caseInsensitiveQuery,
-				}));
-			}
-
-			// If still no results, try partial match
-			if ((!data || data.length === 0) && !error) {
-				const emailValue = sqlQuery.match(
-					/email\s*=\s*'([^']+)'/i
-				)?.[1];
-				if (emailValue) {
-					const partialMatchQuery = sqlQuery.replace(
-						/email\s*=\s*'([^']+)'/i,
-						`email ILIKE '%${emailValue}%'`
-					);
-					({ data, error } = await supabase.rpc("run_sql_query", {
-						query: partialMatchQuery,
-					}));
-				}
-			}
-
-			// If there's an error or no results, try mock data
-			if (error || !data || data.length === 0) {
-				const tableName = sqlQuery
-					.toLowerCase()
-					.match(/from\s+(\w+)/)?.[1];
-				if (tableName && tableName in mockData) {
-					// For mock data, implement similar email matching logic
-					const emailValue = sqlQuery.match(
-						/email\s*=\s*'([^']+)'/i
-					)?.[1];
-					if (emailValue && tableName === "doctors") {
-						const mockResults = mockData.doctors.filter((doc) =>
-							doc.email
-								.toLowerCase()
-								.includes(emailValue.toLowerCase())
-						);
-						if (mockResults.length > 0) {
-							console.log(
-								`Found matching results in mock data for email: ${emailValue}`
-							);
-							return mockResults;
-						}
-					}
-				}
-			}
-
-			if (error) throw error;
-			return data || [];
-		}
-
-		// Regular query execution for non-email queries
+		// Execute the query
 		const { data, error } = await supabase.rpc("run_sql_query", {
 			query: sqlQuery,
 		});
@@ -351,23 +287,18 @@ export async function executeQuery(sqlQuery: string) {
 		if (error) {
 			console.error("Database query error:", error);
 
-			// Check if it's a "relation does not exist" error
-			if (
-				error.message.includes("relation") &&
-				error.message.includes("does not exist")
-			) {
-				// Try to get mock data for the table
-				const tableName = sqlQuery
-					.toLowerCase()
-					.match(/from\s+(\w+)/)?.[1];
-				if (tableName && tableName in mockData) {
-					console.log(`Using mock data for table: ${tableName}`);
-					return mockData[tableName as keyof MockData];
-				}
+			// Try to get mock data for the table
+			const tableName = sqlQuery.toLowerCase().match(/from\s+(\w+)/)?.[1];
+			if (tableName && tableName in mockData) {
+				console.log(`Using mock data for table: ${tableName}`);
+				return mockData[tableName as keyof MockData];
 			}
 
 			throw new Error(`Database error: ${error.message}`);
 		}
+
+		// Log the results for debugging
+		console.log("Query results:", data);
 
 		// Handle empty results
 		if (!data || (Array.isArray(data) && data.length === 0)) {
@@ -385,8 +316,7 @@ export async function executeQuery(sqlQuery: string) {
 		return data;
 	} catch (error) {
 		console.error("Query execution error:", error);
-
-		// Try to extract table name and use mock data as last resort
+		// Fallback to mock data as last resort
 		try {
 			const tableName = sqlQuery.toLowerCase().match(/from\s+(\w+)/)?.[1];
 			if (tableName && tableName in mockData) {

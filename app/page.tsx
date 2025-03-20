@@ -4,12 +4,19 @@ import { useState } from "react";
 import QueryInput from "./components/QueryInput";
 import ResponseDisplay from "./components/ResponseDisplay";
 
+interface SchemaTable {
+	name: string;
+	columns: string[];
+	queried: boolean;
+}
+
 export default function Home() {
 	const [isLoading, setIsLoading] = useState(false);
 	const [error, setError] = useState<string | null>(null);
 	const [response, setResponse] = useState<string | null>(null);
 	const [sql, setSql] = useState<string | null>(null);
 	const [data, setData] = useState<any[] | null>(null);
+	const [schema, setSchema] = useState<SchemaTable[] | null>(null);
 
 	const handleSubmit = async (query: string) => {
 		setIsLoading(true);
@@ -17,6 +24,7 @@ export default function Home() {
 		setResponse(null);
 		setSql(null);
 		setData(null);
+		setSchema(null);
 
 		try {
 			const res = await fetch("/api/query", {
@@ -40,6 +48,7 @@ export default function Home() {
 			setResponse(result.response);
 			setSql(result.sql);
 			setData(result.data);
+			setSchema(result.schema);
 
 			// Log API status issues if any
 			if (result.apiStatus && result.apiStatus !== "ok") {
@@ -62,11 +71,12 @@ export default function Home() {
 			<div className="w-full max-w-lg">
 				<QueryInput onSubmit={handleSubmit} disabled={isLoading} />
 
-				{(isLoading || error || response || sql || data) && (
+				{(isLoading || error || response || sql || data || schema) && (
 					<ResponseDisplay
 						response={response || ""}
 						sql={sql}
 						data={data}
+						schema={schema}
 						isLoading={isLoading}
 						error={error}
 					/>

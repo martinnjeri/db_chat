@@ -1,156 +1,80 @@
 import { DatabaseSchema } from "../types";
 
+// Mock schema with sample data for testing
 export function getMockSchema(): DatabaseSchema {
-	return {
-		tables: [
-			{
-				name: "doctors",
-				description: "Medical professionals working at the hospital",
-				columns: [
-					{
-						name: "id",
-						type: "integer",
-						description: "Unique identifier",
-					},
-					{
-						name: "name",
-						type: "text",
-						description: "Doctor's full name",
-					},
-					{
-						name: "specialty",
-						type: "text",
-						description: "Medical specialty",
-					},
-					{
-						name: "hospital_id",
-						type: "integer",
-						description: "Hospital where the doctor works",
-					},
-					{
-						name: "years_experience",
-						type: "integer",
-						description: "Years of professional experience",
-					},
-				],
-				sample_data: [
-					{
-						id: 1,
-						name: "Dr. Smith",
-						specialty: "Cardiology",
-						hospital_id: 1,
-						years_experience: 15,
-					},
-					{
-						id: 2,
-						name: "Dr. Johnson",
-						specialty: "Neurology",
-						hospital_id: 2,
-						years_experience: 8,
-					},
-				],
-			},
-			{
-				name: "hospitals",
-				description: "Medical facilities",
-				columns: [
-					{
-						name: "id",
-						type: "integer",
-						description: "Unique identifier",
-					},
-					{
-						name: "name",
-						type: "text",
-						description: "Hospital name",
-					},
-					{
-						name: "location",
-						type: "text",
-						description: "City or address",
-					},
-					{
-						name: "beds",
-						type: "integer",
-						description: "Number of beds available",
-					},
-					{
-						name: "rating",
-						type: "numeric",
-						description: "Hospital rating (1-5)",
-					},
-				],
-				sample_data: [
-					{
-						id: 1,
-						name: "General Hospital",
-						location: "Downtown",
-						beds: 500,
-						rating: 4.2,
-					},
-					{
-						id: 2,
-						name: "Community Medical Center",
-						location: "Westside",
-						beds: 200,
-						rating: 3.8,
-					},
-				],
-			},
-			{
-				name: "patients",
-				description: "People receiving medical care",
-				columns: [
-					{
-						name: "id",
-						type: "integer",
-						description: "Unique identifier",
-					},
-					{
-						name: "name",
-						type: "text",
-						description: "Patient's full name",
-					},
-					{
-						name: "age",
-						type: "integer",
-						description: "Patient's age",
-					},
-					{
-						name: "condition",
-						type: "text",
-						description: "Medical condition",
-					},
-					{
-						name: "doctor_id",
-						type: "integer",
-						description: "Primary doctor's ID",
-					},
-					{
-						name: "admitted_date",
-						type: "date",
-						description: "Date of admission",
-					},
-				],
-				sample_data: [
-					{
-						id: 1,
-						name: "Jane Doe",
-						age: 45,
-						condition: "Hypertension",
-						doctor_id: 1,
-						admitted_date: "2023-05-15",
-					},
-					{
-						id: 2,
-						name: "John Smith",
-						age: 62,
-						condition: "Stroke",
-						doctor_id: 2,
-						admitted_date: "2023-06-02",
-					},
-				],
-			},
-		],
-	};
+  return {
+    tables: [
+      {
+        name: "hospitals",
+        description: "Healthcare facilities",
+        columns: [
+          { name: "id", type: "integer", description: "Primary key" },
+          { name: "name", type: "text", description: "Hospital name" },
+          { name: "city", type: "text", description: "City location" },
+          { name: "beds", type: "integer", description: "Number of beds" },
+        ],
+        sample_data: [
+          { id: 1, name: "General Hospital", city: "New York", beds: 500 },
+          { id: 2, name: "Community Medical", city: "Boston", beds: 200 },
+          { id: 3, name: "Central Hospital", city: "Chicago", beds: 350 },
+        ],
+      },
+      {
+        name: "doctors",
+        description: "Medical professionals who treat patients",
+        columns: [
+          { name: "id", type: "integer", description: "Primary key" },
+          { name: "name", type: "text", description: "Doctor name" },
+          { name: "phone_number", type: "text", description: "Contact phone number" },
+          { name: "email", type: "text", description: "Email address" },
+          { name: "hospital_id", type: "integer", description: "Foreign key to hospitals table, links doctor to their hospital" },
+        ],
+        sample_data: [
+          {
+            id: 1,
+            name: "Dr. Smith",
+            phone_number: "555-123-4567",
+            email: "smith@hospital.com",
+            hospital_id: 1,
+          },
+          {
+            id: 2,
+            name: "Dr. Johnson",
+            phone_number: "555-234-5678",
+            email: "johnson@hospital.com",
+            hospital_id: 2,
+          },
+          {
+            id: 3,
+            name: "Dr. Williams",
+            phone_number: "555-345-6789",
+            email: "williams@hospital.com",
+            hospital_id: 3,
+          },
+        ],
+      },
+      {
+        name: "patients",
+        description: "People receiving medical care, each assigned to a doctor",
+        columns: [
+          { name: "id", type: "integer", description: "Primary key" },
+          { name: "name", type: "text", description: "Patient name" },
+          { name: "age", type: "integer", description: "Patient age" },
+          { 
+            name: "doctor_id", 
+            type: "integer", 
+            description: "Foreign key to doctors table, links patient to their assigned doctor" 
+          },
+        ],
+        sample_data: [
+          { id: 1, name: "John Doe", age: 45, doctor_id: 1 },
+          { id: 2, name: "Jane Smith", age: 38, doctor_id: 2 },
+          { id: 3, name: "Bob Johnson", age: 67, doctor_id: 1 },
+          { id: 4, name: "Alice Brown", age: 52, doctor_id: 3 },
+          { id: 5, name: "Tom Wilson", age: 29, doctor_id: 2 },
+          { id: 6, name: "Sarah Lee", age: 41, doctor_id: 3 },
+        ],
+      },
+    ],
+  };
 }

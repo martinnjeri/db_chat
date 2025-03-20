@@ -1,9 +1,17 @@
 "use client";
+import { useState } from "react";
+
+interface SchemaTable {
+	name: string;
+	columns: string[];
+	queried: boolean;
+}
 
 interface ResponseDisplayProps {
 	response: string;
 	sql?: string | null;
 	data?: any[] | null;
+	schema?: SchemaTable[] | null;
 	isLoading?: boolean;
 	error?: string | null;
 }
@@ -12,9 +20,12 @@ export default function ResponseDisplay({
 	response,
 	sql,
 	data,
+	schema,
 	isLoading,
 	error,
 }: ResponseDisplayProps) {
+	const [activeTab, setActiveTab] = useState<"results" | "schema">("results");
+
 	return (
 		<div className="w-full max-w-lg mt-8">
 			<div className="bg-[var(--card-bg)] shadow-lg rounded-lg px-6 py-5 mb-4 border border-[var(--border)]">
@@ -63,8 +74,34 @@ export default function ResponseDisplay({
 					</div>
 				)}
 
+				{/* Tabs for Results and Schema */}
+				{!isLoading && !error && (
+					<div className="mb-4">
+						<div className="flex border-b border-[var(--border)]">
+							<button
+								className={`px-4 py-2 font-medium text-sm ${
+									activeTab === "results"
+										? "text-[var(--primary)] border-b-2 border-[var(--primary)]"
+										: "text-[var(--secondary)] hover:text-[var(--foreground)]"
+								}`}
+								onClick={() => setActiveTab("results")}>
+								Results
+							</button>
+							<button
+								className={`px-4 py-2 font-medium text-sm ${
+									activeTab === "schema"
+										? "text-[var(--primary)] border-b-2 border-[var(--primary)]"
+										: "text-[var(--secondary)] hover:text-[var(--foreground)]"
+								}`}
+								onClick={() => setActiveTab("schema")}>
+								Schema Debug
+							</button>
+						</div>
+					</div>
+				)}
+
 				{/* Data Table Section */}
-				{data && data.length > 0 && !isLoading && !error && (
+				{activeTab === "results" && data && data.length > 0 && !isLoading && !error && (
 					<div>
 						<h4 className="text-lg font-semibold mb-2 text-[var(--primary)]">
 							Data
@@ -114,8 +151,55 @@ export default function ResponseDisplay({
 					</div>
 				)}
 
+				{/* Schema Debug View */}
+				{activeTab === "schema" && schema && schema.length > 0 && !isLoading && !error && (
+					<div>
+						<h4 className="text-lg font-semibold mb-2 text-[var(--primary)]">
+							Database Schema
+						</h4>
+						<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+							{schema.map((table) => (
+								<div 
+									key={table.name}
+									className={`p-4 rounded-lg border ${
+										table.queried 
+											? "border-[var(--primary)] bg-[var(--primary)]/5" 
+											: "border-[var(--border)] bg-[var(--background)]"
+									}`}
+								>
+									<div className="flex items-center justify-between mb-2">
+										<h5 className={`font-medium ${
+											table.queried ? "text-[var(--primary)]" : ""
+										}`}>
+											{table.name}
+											{table.queried && (
+												<span className="ml-2 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-[var(--primary)]/20 text-[var(--primary)]">
+													Queried
+												</span>
+											)}
+										</h5>
+									</div>
+									<div className="text-sm">
+										<div className="text-[var(--secondary)] mb-1">Columns:</div>
+										<div className="flex flex-wrap gap-1">
+											{table.columns.map((column) => (
+												<span 
+													key={`${table.name}-${column}`}
+													className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-[var(--background)] border border-[var(--border)]"
+												>
+													{column}
+												</span>
+											))}
+										</div>
+									</div>
+								</div>
+							))}
+						</div>
+					</div>
+				)}
+
 				{/* No Results State */}
-				{!isLoading && !error && (!data || data.length === 0) && (
+				{activeTab === "results" && !isLoading && !error && (!data || data.length === 0) && (
 					<div className="text-center py-8">
 						<div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-[var(--background)] mb-4">
 							<svg

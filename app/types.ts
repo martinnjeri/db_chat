@@ -16,6 +16,7 @@ export interface TableSchema {
   name: string;
   columns: TableColumn[];
   description?: string;
+  sample_data?: any[];
 }
 
 export interface DatabaseSchema {
